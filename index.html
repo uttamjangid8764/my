@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sparrow Fly Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #333; /* Dark background color */
+            color: white; /* Default text color */
+            transition: background-color 0.3s, color 0.3s; /* Smooth transition for mode change */
+        }
+
+        #gameCanvas {
+            background-color: #333;
+            display: block;
+            margin: auto;
+            border: 1px solid white;
+        }
+
+        .score {
+            font-size: 24px;
+            color: #fff;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+
+        #restartButton {
+            display: none;
+            font-size: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            position: absolute;
+            top: 200px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #restartButton:hover {
+            background-color: #45a049;
+        }
+
+        .difficulty {
+            font-size: 18px;
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            color: #fff;
+        }
+
+        /* Light mode styles */
+        .light-mode {
+            background-color: #f4f4f4; /* Light background color */
+            color: black; /* Light text color */
+        }
+
+        .light-mode #gameCanvas {
+            background-color: #f4f4f4; /* Light background color for canvas */
+            border: 1px solid black; /* Dark border for the canvas */
+        }
+
+        .light-mode .score {
+            color: black; /* Dark text color for score */
+        }
+
+        /* Button for toggle mode */
+        #toggleModeButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 18px;
+            background-color: #2196F3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+        }
+
+        #toggleModeButton:hover {
+            background-color: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <div class="score">Score: <span id="score">0</span></div>
+    <div class="difficulty">
+        Difficulty: 
+        <button onclick="setDifficulty('easy')">Easy</button>
+        <button onclick="setDifficulty('medium')">Medium</button>
+        <button onclick="setDifficulty('hard')">Hard</button>
+    </div>
+    <button id="toggleModeButton" onclick="toggleMode()">Toggle Mode</button> <!-- Button to toggle modes -->
+    <canvas id="gameCanvas"></canvas>
+    <button id="restartButton" onclick="restartGame()">Restart Game</button>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = 800;
+        canvas.height = 600;
+
+        let sparrowY = canvas.height / 2;
+        const sparrowWidth = 40;
+        const sparrowHeight = 40;
+        const gravity = 0.1;
+        let sparrowSpeed = 0;
+        let flySpeed = -2; // Slow fly speed
+
+        // Sparrow Image (Yellow-colored sparrow)
+        const sparrowImage = new Image();
+        sparrowImage.src = 'https://img.icons8.com/ios/452/bird.png'; // Sparrow icon (we'll make this yellow)
+
+        // Obstacles variables
+        const obstacles = [];
+        let obstacleSpeed = 1.5; // Slower obstacles speed
+        let obstacleFrequency = 100; // Frequency of obstacles appearing
+
+        // Score variable
+        let score = 0;
+
+        // Control variables
+        let upKey = false;
+        let gameOver = false;
+
+        // Event listener for keydown and keyup events
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') upKey = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowUp') upKey = false;
+        });
+
+        // Function to generate obstacles with random size and position
+        function createObstacle() {
+            const isLarge = Math.random() > 0.5; // 50% chance to be large
+            const obstacleWidth = isLarge ? 80 : 50; // Large obstacles will be wider
+            const obstacleHeight = isLarge ? 120 : 80; // Large obstacles will be taller
+
+            // Obstacles will only appear on the bottom of the screen without random movement
+            obstacles.push({
+                x: canvas.width,
+                y: canvas.height - obstacleHeight,
+                width: obstacleWidth,
+                height: obstacleHeight,
+                speed: obstacleSpeed
+            });
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (gameOver) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Sparrow movement (flying)
+            if (upKey) {
+                sparrowSpeed = flySpeed; // Slow fly speed when up key is pressed
+            } else {
+                sparrowSpeed += gravity; // Gravity effect
+            }
+
+            sparrowY += sparrowSpeed;
+
+            // Prevent the sparrow from going out of the canvas
+            if (sparrowY < 0) sparrowY = 0;
+            if (sparrowY + sparrowHeight > canvas.height) sparrowY = canvas.height - sparrowHeight;
+
+            // Draw the sparrow as a yellow image
+            ctx.drawImage(sparrowImage, 50, sparrowY, sparrowWidth, sparrowHeight); // Use sparrow image
+
+            // Obstacle movement and collision detection
+            for (let i = 0; i < obstacles.length; i++) {
+                obstacles[i].x -= obstacles[i].speed; // Move obstacles to the left
+
+                // Check for collision with obstacles
+                if (
+                    (50 + sparrowWidth > obstacles[i].x && 50 < obstacles[i].x + obstacles[i].width) &&
+                    (sparrowY + sparrowHeight > obstacles[i].y)
+                ) {
+                    // Game Over condition: Collision with obstacle
+                    gameOver = true;
+                    document.getElementById('restartButton').style.display = 'block';
+                    alert('Game Over! Final Score: ' + score);
+                    score = 0; // Reset score on collision
+                }
+
+                // If obstacles move off-screen, increase score and remove
+                if (obstacles[i].x + obstacles[i].width < 0) {
+                    obstacles.splice(i, 1);
+                    // Calculate score multiplier based on obstacle speed
+                    const speedMultiplier = Math.floor(obstacleSpeed);
+                    // Add bonus points based on current score
+                    const scoreBonus = Math.floor(score / 10);
+                    score += speedMultiplier + scoreBonus;
+                    document.getElementById('score').textContent = score; // Update score on screen
+                    i--;
+                } else {
+                    // Draw the obstacles (flying objects)
+                    ctx.fillStyle = 'green'; // Color the obstacles green
+                    ctx.fillRect(obstacles[i].x, obstacles[i].y, obstacles[i].width, obstacles[i].height);
+                }
+            }
+
+            // Create new obstacles periodically
+            if (Math.random() * obstacleFrequency < 1) { // Random chance to generate obstacles
+                createObstacle();
+            }
+
+            // Increase difficulty (speed and frequency) over time
+            if (score > 0 && score % 10 === 0) {
+                obstacleSpeed += 0.5; // Gradually increase the speed of obstacles
+                obstacleFrequency = Math.max(40, obstacleFrequency - 5); // Make obstacles appear more frequently
+            }
+
+            requestAnimationFrame(gameLoop); // Repeat the game loop
+        }
+
+        sparrowImage.onload = function() {
+            gameLoop(); // Start the game loop when the sparrow image has loaded
+        };
+
+        // Restart the game
+        function restartGame() {
+            gameOver = false;
+            score = 0;
+            obstacles.length = 0;
+            document.getElementById('score').textContent = score;
+            document.getElementById('restartButton').style.display = 'none';
+            sparrowY = canvas.height / 2;
+            sparrowSpeed = 0;
+            gameLoop();
+        }
+
+        // Set difficulty
+        function setDifficulty(level) {
+            if (level === 'easy') {
+                obstacleSpeed = 1.5; // Slower obstacles for easy difficulty
+                obstacleFrequency = 150; // Less frequent obstacles
+            } else if (level === 'medium') {
+                obstacleSpeed = 2.5; // Medium speed for obstacles
+                obstacleFrequency = 100; // Moderate frequency
+            } else if (level === 'hard') {
+                obstacleSpeed = 4; // Faster obstacles for hard difficulty
+                obstacleFrequency = 80; // More frequent obstacles
+            }
+        }
+
+        // Toggle mode between light and dark
+        function toggleMode() {
+            document.body.classList.toggle('light-mode'); // Toggle light mode class
+            const isLightMode = document.body.classList.contains('light-mode');
+            document.getElementById('toggleModeButton').textContent = isLightMode ? 'Switch to Dark Mode' : 'Switch to Light Mode';
+        }
+    </script>
+</body>
+</html>
+
